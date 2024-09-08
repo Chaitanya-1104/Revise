@@ -1,0 +1,17 @@
+{
+    "manifest_version": 3,
+    "name": "YouTube Screenshot Note Taker",
+    "version": "1.0",
+    "description": "Take screenshots from YouTube videos.",
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "storage"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup.html"
+    }
+}
