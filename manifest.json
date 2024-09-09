@@ -1,17 +1,31 @@
 {
     "manifest_version": 3,
-    "name": "YouTube Screenshot Note Taker",
+    "name": "Manual Screenshot Capture Extension",
     "version": "1.0",
-    "description": "Take screenshots from YouTube videos.",
     "permissions": [
         "activeTab",
-        "tabs",
-        "storage"
+        "storage",
+        "scripting"
     ],
     "background": {
         "service_worker": "background.js"
     },
     "action": {
-        "default_popup": "popup.html"
-    }
+        "default_popup": "popup.html",
+        "default_icon": {
+            "48": "icon48.png",
+            "128": "icon128.png"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_end"
+        }
+    ]
 }
