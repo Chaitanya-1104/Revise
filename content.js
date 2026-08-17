@@ -26,16 +26,32 @@ function createOverlay() {
   overlay.style.left = '0';
   overlay.style.width = '100%';
   overlay.style.height = '100%';
-  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.25)';
   overlay.style.cursor = 'crosshair';
   overlay.style.zIndex = '999999';
   document.body.appendChild(overlay);
+
+  // visual box to show selection
+  let selectionBox = document.createElement('div');
+  selectionBox.id = 'screenshot-selection-box';
+  selectionBox.style.position = 'fixed';
+  selectionBox.style.border = '2px dashed #fff';
+  selectionBox.style.backgroundColor = 'rgba(255,255,255,0.05)';
+  selectionBox.style.zIndex = '1000000';
+  document.body.appendChild(selectionBox);
 
   // Capture the start coordinates on mousedown
   overlay.addEventListener('mousedown', (e) => {
     startX = e.clientX;
     startY = e.clientY;
+    endX = startX;
+    endY = startY;
     isSelecting = true;
+    selectionBox.style.left = startX + 'px';
+    selectionBox.style.top = startY + 'px';
+    selectionBox.style.width = '0px';
+    selectionBox.style.height = '0px';
+    selectionBox.style.display = 'block';
     console.log("Selection started at:", startX, startY);
   });
 
@@ -44,7 +60,7 @@ function createOverlay() {
     if (isSelecting) {
       endX = e.clientX;
       endY = e.clientY;
-      updateOverlay();
+      updateOverlay(selectionBox);
     }
   });
 
@@ -52,28 +68,53 @@ function createOverlay() {
   overlay.addEventListener('mouseup', () => {
     isSelecting = false;
     console.log("Selection completed from:", startX, startY, "to", endX, endY);
+    // remove overlay and selectionBox
+    overlay.remove();
+    selectionBox.remove();
     captureSelection();
   });
+
+  // If the user presses Escape, cancel selection
+  const escHandler = (e) => {
+    if (e.key === 'Escape') {
+      isSelecting = false;
+      if (document.getElementById('screenshot-overlay')) document.getElementById('screenshot-overlay').remove();
+      if (document.getElementById('screenshot-selection-box')) document.getElementById('screenshot-selection-box').remove();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
 }
 
 // Function to update the selection area visually
-function updateOverlay() {
-  let overlay = document.getElementById('screenshot-overlay');
-  if (overlay) {
-    overlay.style.left = `${Math.min(startX, endX)}px`;
-    overlay.style.top = `${Math.min(startY, endY)}px`;
-    overlay.style.width = `${Math.abs(startX - endX)}px`;
-    overlay.style.height = `${Math.abs(startY - endY)}px`;
+function updateOverlay(box) {
+  if (!box) box = document.getElementById('screenshot-selection-box');
+  if (box) {
+    const left = Math.min(startX, endX);
+    const top = Math.min(startY, endY);
+    const width = Math.abs(startX - endX);
+    const height = Math.abs(startY - endY);
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
+    box.style.width = `${width}px`;
+    box.style.height = `${height}px`;
   }
 }
 
 // Function to remove the overlay and send the capture message to background.js
 function captureSelection() {
-  document.getElementById('screenshot-overlay').remove();
-  console.log("Sending capture message with coordinates...");
+  // normalize rectangle
+  const left = Math.min(startX, endX);
+  const top = Math.min(startY, endY);
+  const width = Math.abs(startX - endX);
+  const height = Math.abs(startY - endY);
+
+  // send DPR and scroll offsets so background can crop correctly
   chrome.runtime.sendMessage({
     action: 'capture',
-    coordinates: { startX, startY, endX, endY }
+    coordinates: { left, top, width, height },
+    devicePixelRatio: window.devicePixelRatio || 1,
+    scroll: { x: window.scrollX || 0, y: window.scrollY || 0 }
   });
 }
 

@@ -4,20 +4,53 @@
 <head>
     <style>
         body {
-            width: 300px;
+            width: 360px;
             font-family: Arial, sans-serif;
+            padding: 8px;
         }
 
-        #screenshot {
-            width: 100%;
+        #screenshot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .stack-date {
+            font-weight: bold;
+            margin-top: 6px;
+        }
+
+        .thumb-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .thumb-row img {
+            width: 120px;
             height: auto;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            margin-top: 8px;
+            padding: 6px 10px;
         }
     </style>
 </head>
 
 <body>
-    <h2>Screenshot</h2>
-    <img id="screenshot" src="" alt="No screenshot yet" />
+    <h2>Revise — Recent Captures</h2>
+    <div id="screenshot-list">
+        <!-- will be populated by popup.js -->
+    </div>
+    <div>
+        <button id="download-docx">Download selected as DOCX</button>
+    </div>
+
+    <script src="jszip.min.js"></script>
     <script src="popup.js"></script>
 </body>
 
