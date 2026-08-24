@@ -3,6 +3,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const downloadBtn = document.getElementById('download-docx');
     let selected = {}; // map date -> array of selected ids; if empty, select all
 
+    const hasJSZip = typeof JSZip !== 'undefined';
+    if (!hasJSZip) {
+        // Disable DOCX button if JSZip isn't available to avoid runtime errors
+        downloadBtn.disabled = true;
+        downloadBtn.title = 'DOCX export unavailable: JSZip not loaded in the extension. Contact the developer or enable bundled JSZip.';
+    }
+
     function renderStacks(stacks) {
         listEl.innerHTML = '';
         const dates = Object.keys(stacks).sort((a,b) => b.localeCompare(a));
@@ -51,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Build a minimal DOCX with images using JSZip
     async function buildDocx(stacks) {
+        if (typeof JSZip === 'undefined') throw new Error('JSZip not available');
         const zip = new JSZip();
 
         // [Content_Types].xml
@@ -172,6 +180,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     downloadBtn.addEventListener('click', async () => {
+        if (typeof JSZip === 'undefined') {
+            alert('DOCX export unavailable: JSZip is not loaded in this extension. Please install or enable bundled JSZip.');
+            return;
+        }
         chrome.storage.local.get({ stacks: {} }, async (result) => {
             const stacks = result.stacks || {};
             const any = Object.keys(stacks).length > 0;

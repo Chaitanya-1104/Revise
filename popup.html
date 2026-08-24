@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    <meta charset="utf-8">
     <style>
         body {
             width: 360px;
@@ -50,8 +51,8 @@
         <button id="download-docx">Download selected as DOCX</button>
     </div>
 
-    <!-- Load JSZip from CDN so popup can create .docx zip packages -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Load local JSZip (preferred) so popup can create .docx zip packages -->
+    <script src="jszip.min.js"></script>
     <script src="popup.js"></script>
 </body>
 
