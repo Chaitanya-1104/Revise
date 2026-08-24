@@ -3,7 +3,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const downloadBtn = document.getElementById('download-docx');
     let selected = {}; // map date -> array of selected ids; if empty, select all
 
-    const hasJSZip = typeof JSZip !== 'undefined';
+    // Respect different JSZip builds (UMD vs ES module default export). Prefer constructor if available.
+    const ZipCtor = (typeof JSZip === 'function') ? JSZip : (typeof JSZip === 'object' && JSZip && typeof JSZip.default === 'function') ? JSZip.default : null;
+    const hasJSZip = !!ZipCtor;
     if (!hasJSZip) {
         // Disable DOCX button if JSZip isn't available to avoid runtime errors
         downloadBtn.disabled = true;
@@ -58,8 +60,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Build a minimal DOCX with images using JSZip
     async function buildDocx(stacks) {
-        if (typeof JSZip === 'undefined') throw new Error('JSZip not available');
-        const zip = new JSZip();
+        if (!ZipCtor) throw new Error('JSZip not available as constructor');
+        const zip = new ZipCtor();
 
         // [Content_Types].xml
         const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -180,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     downloadBtn.addEventListener('click', async () => {
-        if (typeof JSZip === 'undefined') {
+        if (!ZipCtor) {
             alert('DOCX export unavailable: JSZip is not loaded in this extension. Please install or enable bundled JSZip.');
             return;
         }
