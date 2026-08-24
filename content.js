@@ -120,3 +120,42 @@ function captureSelection() {
 
 // Add event listener to the button to trigger overlay creation
 button.addEventListener('click', createOverlay);
+
+// Listen for messages from background (capture completion)
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg && msg.action === 'captureDone') {
+    console.log('Received captureDone message from background:', msg);
+    if (msg.success) {
+      showToast('Capture saved: ' + (msg.filename || ''));
+    } else {
+      showToast('Capture failed: ' + (msg.error || 'unknown error'));
+    }
+  }
+});
+
+function showToast(text) {
+  try {
+    let t = document.getElementById('revise-toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'revise-toast';
+      t.style.position = 'fixed';
+      t.style.right = '16px';
+      t.style.bottom = '16px';
+      t.style.background = 'rgba(0,0,0,0.85)';
+      t.style.color = '#fff';
+      t.style.padding = '8px 12px';
+      t.style.borderRadius = '4px';
+      t.style.zIndex = '10000001';
+      t.style.fontSize = '13px';
+      document.body.appendChild(t);
+    }
+    t.textContent = text;
+    t.style.opacity = '1';
+    setTimeout(() => {
+      if (t) t.style.opacity = '0';
+    }, 3000);
+  } catch (e) {
+    console.warn('Failed to show toast:', e);
+  }
+}
