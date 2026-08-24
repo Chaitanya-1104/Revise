@@ -85,20 +85,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
 
         // Trigger download (puts file under Downloads/Revise/<date>/)
-        const objectUrl = URL.createObjectURL(croppedBlob);
+        // In a service worker context, URL.createObjectURL may not be available; use data URL instead
         chrome.downloads.download({
-          url: objectUrl,
+          url: croppedDataUrl,
           filename: filename,
           conflictAction: 'uniquify',
           saveAs: false
         }, (downloadId) => {
           if (chrome.runtime.lastError) {
             console.error('Download error:', chrome.runtime.lastError);
-            URL.revokeObjectURL(objectUrl);
           } else {
             console.log('Download started, id:', downloadId);
-            // revoke after a delay to ensure download reads the object
-            setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
           }
         });
 
