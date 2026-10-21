@@ -1,22 +1,26 @@
 console.log("Content script loaded.");
 
-function ensureCaptureToolbar() {
-  let tool = document.getElementById('revise-capture-toolbar');
-  if (tool) return tool;
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
-  tool = document.createElement('div');
-  tool.id = 'revise-capture-toolbar';
-  tool.style.position = 'fixed';
-  tool.style.top = '12px';
-  tool.style.right = '12px';
-  tool.style.zIndex = '2147483647';
-  tool.style.display = 'flex';
-  tool.style.alignItems = 'center';
-  tool.style.gap = '8px';
-  tool.style.userSelect = 'none';
-  tool.style.pointerEvents = 'auto';
-  tool.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
-  tool.style.filter = 'drop-shadow(0 8px 18px rgba(15, 23, 42, 0.18))';
+function ensureCaptureToolbar() {
+  let toolbar = document.getElementById('revise-capture-toolbar');
+  if (toolbar) return toolbar;
+
+  toolbar = document.createElement('div');
+  toolbar.id = 'revise-capture-toolbar';
+  toolbar.style.position = 'fixed';
+  toolbar.style.top = '12px';
+  toolbar.style.right = '12px';
+  toolbar.style.zIndex = '2147483647';
+  toolbar.style.display = 'flex';
+  toolbar.style.alignItems = 'center';
+  toolbar.style.gap = '8px';
+  toolbar.style.userSelect = 'none';
+  toolbar.style.pointerEvents = 'auto';
+  toolbar.style.filter = 'drop-shadow(0 10px 20px rgba(15, 23, 42, 0.18))';
+  toolbar.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
 
   const button = document.createElement('button');
   button.id = 'screenshot-button';
@@ -25,7 +29,7 @@ function ensureCaptureToolbar() {
   button.title = 'Select a region to capture';
   button.style.position = 'relative';
   button.style.padding = '9px 15px';
-  button.style.border = '1px solid rgba(79, 70, 229, 0.25)';
+  button.style.border = '1px solid rgba(79, 70, 229, 0.35)';
   button.style.borderRadius = '999px';
   button.style.background = 'linear-gradient(135deg, #4f46e5, #7c3aed)';
   button.style.color = '#ffffff';
@@ -63,100 +67,113 @@ function ensureCaptureToolbar() {
   collapseBtn.style.padding = '0';
   collapseBtn.style.outline = 'none';
 
-  tool.appendChild(button);
-  tool.appendChild(collapseBtn);
-  document.body.appendChild(tool);
+  toolbar.appendChild(button);
+  toolbar.appendChild(collapseBtn);
+  document.body.appendChild(toolbar);
 
   let dragState = null;
 
-  const clampToViewport = (x, y) => {
-    const maxX = Math.max(12, window.innerWidth - tool.offsetWidth - 12);
-    const maxY = Math.max(12, window.innerHeight - tool.offsetHeight - 12);
-    return {
-      x: Math.min(Math.max(x, 12), maxX),
-      y: Math.min(Math.max(y, 12), maxY)
-    };
+  const updatePosition = () => {
+    const rect = toolbar.getBoundingClientRect();
+    const maxX = Math.max(12, window.innerWidth - rect.width - 12);
+    const maxY = Math.max(12, window.innerHeight - rect.height - 12);
+
+    const left = clamp(parseFloat(toolbar.style.left || rect.left), 12, maxX);
+    const top = clamp(parseFloat(toolbar.style.top || rect.top), 12, maxY);
+
+    toolbar.style.left = `${left}px`;
+    toolbar.style.top = `${top}px`;
+    toolbar.style.right = 'auto';
   };
 
   const startDrag = (event) => {
-    if (tool.classList.contains('revise-collapsed')) return;
-    if (event.target.closest('#revise-collapse-button')) return;
-
-    const rect = tool.getBoundingClientRect();
+    if (toolbar.classList.contains('revise-collapsed')) return;
+    const rect = toolbar.getBoundingClientRect();
     dragState = {
       startX: event.clientX,
       startY: event.clientY,
       left: rect.left,
       top: rect.top
     };
-
     button.style.cursor = 'grabbing';
-    tool.style.transition = 'none';
+    toolbar.style.transition = 'none';
   };
 
   const onMove = (event) => {
     if (!dragState) return;
     const dx = event.clientX - dragState.startX;
     const dy = event.clientY - dragState.startY;
-    const next = clampToViewport(dragState.left + dx, dragState.top + dy);
-    tool.style.left = `${next.x}px`;
-    tool.style.top = `${next.y}px`;
-    tool.style.right = 'auto';
+    const nextX = clamp(dragState.left + dx, 12, Math.max(12, window.innerWidth - toolbar.offsetWidth - 12));
+    const nextY = clamp(dragState.top + dy, 12, Math.max(12, window.innerHeight - toolbar.offsetHeight - 12));
+    toolbar.style.left = `${nextX}px`;
+    toolbar.style.top = `${nextY}px`;
+    toolbar.style.right = 'auto';
   };
 
   const stopDrag = () => {
     if (!dragState) return;
     dragState = null;
     button.style.cursor = 'grab';
-    tool.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+    toolbar.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
   };
 
   button.addEventListener('pointerdown', startDrag);
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', stopDrag);
   window.addEventListener('pointercancel', stopDrag);
+  window.addEventListener('resize', updatePosition);
 
   const setCollapsed = (collapsed) => {
-    tool.classList.toggle('revise-collapsed', collapsed);
+    toolbar.classList.toggle('revise-collapsed', collapsed);
     if (collapsed) {
       button.style.display = 'none';
       collapseBtn.textContent = '⟩';
       collapseBtn.title = 'Show capture controls';
-      tool.style.gap = '0';
-      tool.style.width = '30px';
-      tool.style.height = '30px';
-      tool.style.minWidth = '30px';
-      tool.style.padding = '0';
+      toolbar.style.gap = '0';
+      toolbar.style.width = '30px';
+      toolbar.style.height = '30px';
+      toolbar.style.minWidth = '30px';
+      toolbar.style.padding = '0';
+      toolbar.style.right = '12px';
+      toolbar.style.top = toolbar.style.top || '12px';
+      toolbar.style.left = 'auto';
     } else {
       button.style.display = 'inline-flex';
       button.style.alignItems = 'center';
       button.style.justifyContent = 'center';
       collapseBtn.textContent = '◀';
       collapseBtn.title = 'Hide capture controls';
-      tool.style.gap = '8px';
-      tool.style.width = 'auto';
-      tool.style.height = 'auto';
-      tool.style.minWidth = '0';
-      tool.style.padding = '0';
+      toolbar.style.gap = '8px';
+      toolbar.style.width = 'auto';
+      toolbar.style.height = 'auto';
+      toolbar.style.minWidth = '0';
+      toolbar.style.padding = '0';
+      toolbar.style.right = '12px';
+      toolbar.style.left = 'auto';
     }
   };
 
   collapseBtn.addEventListener('click', () => {
-    const nextCollapsed = !tool.classList.contains('revise-collapsed');
-    setCollapsed(nextCollapsed);
+    setCollapsed(!toolbar.classList.contains('revise-collapsed'));
+  });
+
+  button.addEventListener('click', () => {
+    if (!toolbar.classList.contains('revise-collapsed')) {
+      createOverlay();
+    }
   });
 
   setCollapsed(false);
-  return tool;
+  return toolbar;
 }
 
-const captureTool = ensureCaptureToolbar();
+const captureToolbar = ensureCaptureToolbar();
 const button = document.getElementById('screenshot-button');
 const collapseButton = document.getElementById('revise-collapse-button');
 
 if (button) {
   button.addEventListener('click', () => {
-    if (!captureTool.classList.contains('revise-collapsed')) {
+    if (!captureToolbar.classList.contains('revise-collapsed')) {
       createOverlay();
     }
   });
@@ -164,16 +181,20 @@ if (button) {
 
 if (collapseButton) {
   collapseButton.addEventListener('click', () => {
-    const isCollapsed = captureTool.classList.contains('revise-collapsed');
-    captureTool.classList.toggle('revise-collapsed', !isCollapsed);
-    if (!isCollapsed) {
+    const expanded = !captureToolbar.classList.contains('revise-collapsed');
+    captureToolbar.classList.toggle('revise-collapsed', expanded);
+    if (expanded) {
       if (button) button.style.display = 'none';
       collapseButton.textContent = '⟩';
       collapseButton.title = 'Show capture controls';
+      captureToolbar.style.right = '12px';
+      captureToolbar.style.left = 'auto';
     } else {
       if (button) button.style.display = 'inline-flex';
       collapseButton.textContent = '◀';
       collapseButton.title = 'Hide capture controls';
+      captureToolbar.style.right = '12px';
+      captureToolbar.style.left = 'auto';
     }
   });
 }
