@@ -1,6 +1,5 @@
 console.log("Content script loaded.");
 
-// Create a floating, draggable capture toolbar
 function ensureCaptureToolbar() {
   let tool = document.getElementById('revise-capture-toolbar');
   if (tool) return tool;
@@ -17,6 +16,7 @@ function ensureCaptureToolbar() {
   tool.style.userSelect = 'none';
   tool.style.pointerEvents = 'auto';
   tool.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+  tool.style.filter = 'drop-shadow(0 8px 18px rgba(15, 23, 42, 0.18))';
 
   const button = document.createElement('button');
   button.id = 'screenshot-button';
@@ -24,41 +24,51 @@ function ensureCaptureToolbar() {
   button.innerText = 'Select Area';
   button.title = 'Select a region to capture';
   button.style.position = 'relative';
-  button.style.padding = '8px 14px';
-  button.style.border = '1px solid rgba(0,0,0,0.18)';
+  button.style.padding = '9px 15px';
+  button.style.border = '1px solid rgba(79, 70, 229, 0.25)';
   button.style.borderRadius = '999px';
   button.style.background = 'linear-gradient(135deg, #4f46e5, #7c3aed)';
-  button.style.color = '#fff';
+  button.style.color = '#ffffff';
   button.style.fontSize = '13px';
-  button.style.fontWeight = '600';
+  button.style.fontWeight = '700';
   button.style.cursor = 'grab';
-  button.style.boxShadow = '0 8px 20px rgba(79, 70, 229, 0.25)';
   button.style.whiteSpace = 'nowrap';
   button.style.lineHeight = '1.2';
+  button.style.boxShadow = '0 8px 22px rgba(79, 70, 229, 0.26)';
+  button.style.outline = 'none';
+  button.style.transition = 'transform 0.12s ease, box-shadow 0.12s ease';
+  button.addEventListener('mouseenter', () => {
+    button.style.transform = 'translateY(-1px)';
+  });
+  button.addEventListener('mouseleave', () => {
+    button.style.transform = 'translateY(0)';
+  });
 
   const collapseBtn = document.createElement('button');
   collapseBtn.id = 'revise-collapse-button';
   collapseBtn.type = 'button';
-  collapseBtn.title = 'Hide capture button';
+  collapseBtn.title = 'Hide capture controls';
   collapseBtn.textContent = '◀';
-  collapseBtn.style.width = '26px';
-  collapseBtn.style.height = '26px';
+  collapseBtn.style.width = '28px';
+  collapseBtn.style.height = '28px';
   collapseBtn.style.borderRadius = '50%';
-  collapseBtn.style.border = '1px solid rgba(15,23,42,0.15)';
-  collapseBtn.style.background = 'rgba(255,255,255,0.92)';
+  collapseBtn.style.border = '1px solid rgba(15, 23, 42, 0.12)';
+  collapseBtn.style.background = 'rgba(255,255,255,0.96)';
   collapseBtn.style.color = '#1f2937';
   collapseBtn.style.cursor = 'pointer';
   collapseBtn.style.fontSize = '12px';
   collapseBtn.style.display = 'grid';
   collapseBtn.style.placeItems = 'center';
-  collapseBtn.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.12)';
+  collapseBtn.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.08)';
+  collapseBtn.style.padding = '0';
+  collapseBtn.style.outline = 'none';
 
   tool.appendChild(button);
   tool.appendChild(collapseBtn);
   document.body.appendChild(tool);
 
-  // Make the tool draggable by grabbing the main button area
   let dragState = null;
+
   const clampToViewport = (x, y) => {
     const maxX = Math.max(12, window.innerWidth - tool.offsetWidth - 12);
     const maxY = Math.max(12, window.innerHeight - tool.offsetHeight - 12);
@@ -72,14 +82,12 @@ function ensureCaptureToolbar() {
     if (tool.classList.contains('revise-collapsed')) return;
     if (event.target.closest('#revise-collapse-button')) return;
 
-    const currentLeft = parseFloat(tool.style.left || tool.getBoundingClientRect().left);
-    const currentTop = parseFloat(tool.style.top || tool.getBoundingClientRect().top);
-
+    const rect = tool.getBoundingClientRect();
     dragState = {
       startX: event.clientX,
       startY: event.clientY,
-      left: currentLeft,
-      top: currentTop
+      left: rect.left,
+      top: rect.top
     };
 
     button.style.cursor = 'grabbing';
@@ -88,14 +96,11 @@ function ensureCaptureToolbar() {
 
   const onMove = (event) => {
     if (!dragState) return;
-
     const dx = event.clientX - dragState.startX;
     const dy = event.clientY - dragState.startY;
-    const nextLeft = clampToViewport(dragState.left + dx, dragState.top + dy).x;
-    const nextTop = clampToViewport(dragState.left + dx, dragState.top + dy).y;
-
-    tool.style.left = `${nextLeft}px`;
-    tool.style.top = `${nextTop}px`;
+    const next = clampToViewport(dragState.left + dx, dragState.top + dy);
+    tool.style.left = `${next.x}px`;
+    tool.style.top = `${next.y}px`;
     tool.style.right = 'auto';
   };
 
@@ -115,29 +120,30 @@ function ensureCaptureToolbar() {
     tool.classList.toggle('revise-collapsed', collapsed);
     if (collapsed) {
       button.style.display = 'none';
-      collapseBtn.textContent = '▶';
-      collapseBtn.title = 'Show capture button';
-      tool.style.gap = '0px';
+      collapseBtn.textContent = '⟩';
+      collapseBtn.title = 'Show capture controls';
+      tool.style.gap = '0';
+      tool.style.width = '30px';
+      tool.style.height = '30px';
+      tool.style.minWidth = '30px';
       tool.style.padding = '0';
-      tool.style.minWidth = '26px';
-      tool.style.width = '26px';
-      tool.style.height = '26px';
     } else {
       button.style.display = 'inline-flex';
       button.style.alignItems = 'center';
       button.style.justifyContent = 'center';
       collapseBtn.textContent = '◀';
-      collapseBtn.title = 'Hide capture button';
+      collapseBtn.title = 'Hide capture controls';
       tool.style.gap = '8px';
-      tool.style.minWidth = '0';
       tool.style.width = 'auto';
       tool.style.height = 'auto';
+      tool.style.minWidth = '0';
+      tool.style.padding = '0';
     }
   };
 
   collapseBtn.addEventListener('click', () => {
-    const collapsed = !tool.classList.contains('revise-collapsed');
-    setCollapsed(collapsed);
+    const nextCollapsed = !tool.classList.contains('revise-collapsed');
+    setCollapsed(nextCollapsed);
   });
 
   setCollapsed(false);
@@ -158,18 +164,25 @@ if (button) {
 
 if (collapseButton) {
   collapseButton.addEventListener('click', () => {
-    const collapsed = captureTool.classList.contains('revise-collapsed');
-    captureTool.classList.toggle('revise-collapsed', !collapsed);
+    const isCollapsed = captureTool.classList.contains('revise-collapsed');
+    captureTool.classList.toggle('revise-collapsed', !isCollapsed);
+    if (!isCollapsed) {
+      if (button) button.style.display = 'none';
+      collapseButton.textContent = '⟩';
+      collapseButton.title = 'Show capture controls';
+    } else {
+      if (button) button.style.display = 'inline-flex';
+      collapseButton.textContent = '◀';
+      collapseButton.title = 'Hide capture controls';
+    }
   });
 }
 
-// Variables to store selection start and end points
 let startX, startY, endX, endY;
 let isSelecting = false;
 
-// Function to create the selection overlay
 function createOverlay() {
-  console.log("Creating overlay...");
+  console.log('Creating overlay...');
   let overlay = document.createElement('div');
   overlay.id = 'screenshot-overlay';
   overlay.style.position = 'fixed';
@@ -182,7 +195,6 @@ function createOverlay() {
   overlay.style.zIndex = '999999';
   document.body.appendChild(overlay);
 
-  // visual box to show selection
   let selectionBox = document.createElement('div');
   selectionBox.id = 'screenshot-selection-box';
   selectionBox.style.position = 'fixed';
@@ -197,12 +209,12 @@ function createOverlay() {
     endX = startX;
     endY = startY;
     isSelecting = true;
-    selectionBox.style.left = startX + 'px';
-    selectionBox.style.top = startY + 'px';
+    selectionBox.style.left = `${startX}px`;
+    selectionBox.style.top = `${startY}px`;
     selectionBox.style.width = '0px';
     selectionBox.style.height = '0px';
     selectionBox.style.display = 'block';
-    console.log("Selection started at:", startX, startY);
+    console.log('Selection started at:', startX, startY);
   });
 
   overlay.addEventListener('mousemove', (e) => {
@@ -215,7 +227,7 @@ function createOverlay() {
 
   overlay.addEventListener('mouseup', () => {
     isSelecting = false;
-    console.log("Selection completed from:", startX, startY, "to", endX, endY);
+    console.log('Selection completed from:', startX, startY, 'to', endX, endY);
     overlay.remove();
     selectionBox.remove();
     captureSelection();
@@ -232,7 +244,6 @@ function createOverlay() {
   document.addEventListener('keydown', escHandler);
 }
 
-// Function to update the selection area visually
 function updateOverlay(box) {
   if (!box) box = document.getElementById('screenshot-selection-box');
   if (box) {
@@ -247,7 +258,6 @@ function updateOverlay(box) {
   }
 }
 
-// Function to remove the overlay and send the capture message to background.js
 function captureSelection() {
   const left = Math.min(startX, endX);
   const top = Math.min(startY, endY);
@@ -262,7 +272,6 @@ function captureSelection() {
   });
 }
 
-// Listen for messages from background (capture completion)
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg && msg.action === 'captureDone') {
     console.log('Received captureDone message from background:', msg);
