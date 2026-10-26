@@ -52,20 +52,29 @@ function ensureCaptureToolbar() {
   collapseBtn.id = 'revise-collapse-button';
   collapseBtn.type = 'button';
   collapseBtn.title = 'Hide capture controls';
-  collapseBtn.textContent = '◀';
-  collapseBtn.style.width = '28px';
-  collapseBtn.style.height = '28px';
-  collapseBtn.style.borderRadius = '50%';
-  collapseBtn.style.border = '1px solid rgba(15, 23, 42, 0.12)';
-  collapseBtn.style.background = 'rgba(255,255,255,0.96)';
-  collapseBtn.style.color = '#1f2937';
+  // SVG chevron icon
+  collapseBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7L9 11" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  collapseBtn.style.width = '26px';
+  collapseBtn.style.height = '26px';
+  collapseBtn.style.borderRadius = '8px';
+  collapseBtn.style.border = '1px solid rgba(99, 102, 241, 0.2)';
+  collapseBtn.style.background = 'rgba(255,255,255,0.97)';
+  collapseBtn.style.color = '#6366f1';
   collapseBtn.style.cursor = 'pointer';
-  collapseBtn.style.fontSize = '12px';
   collapseBtn.style.display = 'grid';
   collapseBtn.style.placeItems = 'center';
-  collapseBtn.style.boxShadow = '0 4px 12px rgba(15, 23, 42, 0.08)';
+  collapseBtn.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.15)';
   collapseBtn.style.padding = '0';
   collapseBtn.style.outline = 'none';
+  collapseBtn.style.transition = 'transform 0.2s ease, box-shadow 0.2s ease, background 0.15s ease';
+  collapseBtn.addEventListener('mouseenter', () => {
+    collapseBtn.style.boxShadow = '0 4px 14px rgba(99, 102, 241, 0.25)';
+    collapseBtn.style.background = '#eef2ff';
+  });
+  collapseBtn.addEventListener('mouseleave', () => {
+    collapseBtn.style.boxShadow = '0 2px 8px rgba(99, 102, 241, 0.15)';
+    collapseBtn.style.background = 'rgba(255,255,255,0.97)';
+  });
 
   toolbar.appendChild(button);
   toolbar.appendChild(collapseBtn);
@@ -125,10 +134,11 @@ function ensureCaptureToolbar() {
 
   const setCollapsed = (collapsed) => {
     toolbar.classList.toggle('revise-collapsed', collapsed);
+    // Rotate the chevron: 0deg = left (hide), 180deg = right (show)
+    collapseBtn.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+    collapseBtn.title = collapsed ? 'Show capture controls' : 'Hide capture controls';
     if (collapsed) {
       button.style.display = 'none';
-      collapseBtn.textContent = '⟩';
-      collapseBtn.title = 'Show capture controls';
       toolbar.style.gap = '0';
       toolbar.style.width = '30px';
       toolbar.style.height = '30px';
@@ -141,8 +151,6 @@ function ensureCaptureToolbar() {
       button.style.display = 'inline-flex';
       button.style.alignItems = 'center';
       button.style.justifyContent = 'center';
-      collapseBtn.textContent = '◀';
-      collapseBtn.title = 'Hide capture controls';
       toolbar.style.gap = '8px';
       toolbar.style.width = 'auto';
       toolbar.style.height = 'auto';
@@ -181,18 +189,17 @@ if (button) {
 
 if (collapseButton) {
   collapseButton.addEventListener('click', () => {
-    const expanded = !captureToolbar.classList.contains('revise-collapsed');
-    captureToolbar.classList.toggle('revise-collapsed', expanded);
-    if (expanded) {
+    const collapsed = !captureToolbar.classList.contains('revise-collapsed');
+    captureToolbar.classList.toggle('revise-collapsed', collapsed);
+    // Rotate chevron: 0deg = left (hide), 180deg = right (show)
+    collapseButton.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+    collapseButton.title = collapsed ? 'Show capture controls' : 'Hide capture controls';
+    if (collapsed) {
       if (button) button.style.display = 'none';
-      collapseButton.textContent = '⟩';
-      collapseButton.title = 'Show capture controls';
       captureToolbar.style.right = '12px';
       captureToolbar.style.left = 'auto';
     } else {
       if (button) button.style.display = 'inline-flex';
-      collapseButton.textContent = '◀';
-      collapseButton.title = 'Hide capture controls';
       captureToolbar.style.right = '12px';
       captureToolbar.style.left = 'auto';
     }
@@ -202,7 +209,36 @@ if (collapseButton) {
 let startX, startY, endX, endY;
 let isSelecting = false;
 
+// Global references to current handlers so we can always clean them up
+let _currentMouseMove = null;
+let _currentMouseUp = null;
+let _currentEscHandler = null;
+
+function cleanupOverlay() {
+  // Remove any leftover handlers
+  if (_currentMouseMove) {
+    document.removeEventListener('mousemove', _currentMouseMove, true);
+    _currentMouseMove = null;
+  }
+  if (_currentMouseUp) {
+    document.removeEventListener('mouseup', _currentMouseUp, true);
+    _currentMouseUp = null;
+  }
+  if (_currentEscHandler) {
+    document.removeEventListener('keydown', _currentEscHandler);
+    _currentEscHandler = null;
+  }
+  // Remove any leftover DOM elements
+  isSelecting = false;
+  const o = document.getElementById('screenshot-overlay');
+  const b = document.getElementById('screenshot-selection-box');
+  if (o) o.remove();
+  if (b) b.remove();
+}
+
 function createOverlay() {
+  // First clean up any previous overlay/handlers
+  cleanupOverlay();
   console.log('Creating overlay...');
   let overlay = document.createElement('div');
   overlay.id = 'screenshot-overlay';
@@ -238,31 +274,46 @@ function createOverlay() {
     console.log('Selection started at:', startX, startY);
   });
 
-  overlay.addEventListener('mousemove', (e) => {
-    if (isSelecting) {
-      endX = e.clientX;
-      endY = e.clientY;
-      updateOverlay(selectionBox);
-    }
-  });
+  // Use document-level handlers with capture:true so they fire before any element steals them
+  const onMouseMove = (e) => {
+    if (!isSelecting) return;
+    endX = e.clientX;
+    endY = e.clientY;
+    updateOverlay(selectionBox);
+  };
 
-  overlay.addEventListener('mouseup', () => {
-    isSelecting = false;
-    console.log('Selection completed from:', startX, startY, 'to', endX, endY);
-    overlay.remove();
-    selectionBox.remove();
-    captureSelection();
-  });
+  const finishSelection = () => {
+    if (!isSelecting) return;
+    // Only capture if area is meaningful (>10px in both dimensions)
+    const w = Math.abs(endX - startX);
+    const h = Math.abs(endY - startY);
+    console.log('Selection completed from:', startX, startY, 'to', endX, endY, 'size:', w, 'x', h);
+    // Clean up handlers and DOM
+    cleanupOverlay();
+    if (w > 10 && h > 10) {
+      captureSelection();
+    }
+  };
+
+  const onMouseUp = () => {
+    finishSelection();
+  };
+
+  // Store refs globally so cleanupOverlay can remove them
+  _currentMouseMove = onMouseMove;
+  _currentMouseUp = onMouseUp;
 
   const escHandler = (e) => {
     if (e.key === 'Escape') {
-      isSelecting = false;
-      if (document.getElementById('screenshot-overlay')) document.getElementById('screenshot-overlay').remove();
-      if (document.getElementById('screenshot-selection-box')) document.getElementById('screenshot-selection-box').remove();
-      document.removeEventListener('keydown', escHandler);
+      finishSelection();
     }
   };
-  document.addEventListener('keydown', escHandler);
+  _currentEscHandler = escHandler;
+
+  // Capture phase so no element can prevent this from firing
+  document.addEventListener('mousemove', _currentMouseMove, true);
+  document.addEventListener('mouseup', _currentMouseUp, true);
+  document.addEventListener('keydown', _currentEscHandler);
 }
 
 function updateOverlay(box) {
